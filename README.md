@@ -42,3 +42,6 @@ scheme it will not switch automatically and the error messages
 if you forget to do this are not very helpful. You need 
 to select it directly as otherwise it creates an implict 
 dependency of the Xcode build and it will not be faster.
+
+xcodemake is a script. To install if you can use the instructions
+in [this issue](https://github.com/johnno1962/xcodemake/issues/3).
