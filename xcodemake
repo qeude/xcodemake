@@ -28,7 +28,7 @@ my $hasConfiguration = $args =~ /-(?:config|configuration)\b/;
 my $hasScheme = $args =~ /-scheme\b/;
 $args .= " -configuration Debug" if !$hasConfiguration && !$hasScheme;
 
-my $variant = "$xcodebuild ARCHS=$archs $args";
+my $variant = "$xcodebuild ARCHS=$archs $args.";
 my $log = "$dir/xcodemake $args.log";
 my $builddb = ($ENV{OBJROOT}||'/tmp')."/XCBuildData/build.db";
 my $xcbuild = "/usr/bin/env -i '$xcodebuild' ARCHS=$archs $args";
