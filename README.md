@@ -4,8 +4,8 @@
 xcodebuild output to generate a `Makefile` for an Xcode project.
 Invoke the script with the arguments you would normally provide to
 xcodebuild for a sucessfull build e.g. -scheme (target) and -sdk.
-Once the Makefile has been generated you can use the "make" command 
-for incremental builds which is generally considerably faster.
+Once the Makefile has been generated under `.xcodemake/`, the script uses
+it for incremental builds, which are generally considerably faster.
 Note however, `xcodemake` only recompiles program source changes,
 not resources or other binary aspects of an app bundle. You
 can use xcodebuild for that or Xocde's internal build system
@@ -31,8 +31,8 @@ system select "Other" and the executable from the file system
 directly in the scheme for the new target. If you encounter 
 errors revert to the default Xcode build system, build then
 try again. If you reorganise the files in the project the 
-script should recapture the xcodemake\*.log files in your 
-project root and the derived Makefile be regenerated.
+script should recapture the `xcodemake-*.log` files under `.xcodemake/`
+and regenerate the derived Makefile.
 
 If you replace `-sdk iphonesimulator` with `-sdk $(PLATFORM_NAME)`
 you can use this "make" based build system for real devices.
@@ -43,5 +43,12 @@ if you forget to do this are not very helpful. You need
 to select it directly as otherwise it creates an implict 
 dependency of the Xcode build and it will not be faster.
 
-xcodemake is a script. To install if you can use the instructions
-in [this issue](https://github.com/johnno1962/xcodemake/issues/3).
+## Installation
+
+Install `xcodemake` from the repository:
+
+```sh
+curl -O https://raw.githubusercontent.com/johnno1962/xcodemake/main/xcodemake
+chmod +x xcodemake
+sudo mv xcodemake /usr/local/bin/
+```

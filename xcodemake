@@ -17,15 +17,19 @@
 use IO::File;
 use strict;
 
-my $log = "xcodemake @ARGV.log";
-my $make = "Makefile";
+my $dir = ".xcodemake";
+mkdir $dir unless -d $dir;
+my $make = "$dir/Makefile";
 
 my $xcodebuild = ($ENV{DEVELOPER_BIN_DIR}||'/usr/bin')."/xcodebuild";
 my $archs = $ENV{ARCHS}||'arm64';
 my $args = join ' ', map { "'$_'" } @ARGV;
-$args .= " -config Debug" if $args !~ /-config/;
+my $hasConfiguration = $args =~ /-(?:config|configuration)\b/;
+my $hasScheme = $args =~ /-scheme\b/;
+$args .= " -configuration Debug" if !$hasConfiguration && !$hasScheme;
 
-my $variant = "$xcodebuild ARCHS=$archs @ARGV";
+my $variant = "$xcodebuild ARCHS=$archs $args";
+my $log = "$dir/xcodemake $args.log";
 my $builddb = ($ENV{OBJROOT}||'/tmp')."/XCBuildData/build.db";
 my $xcbuild = "/usr/bin/env -i '$xcodebuild' ARCHS=$archs $args";
 my $EXIT_SUCCESS = 0;
@@ -39,9 +43,9 @@ $fileArg = "$notSpace+(?:\\\\.$notSpace*)*";
 captureXcodebuild() if ! -f $log || `find . -name project.pbxproj -newer '$log'`;
 
 # Regenerate Makefile (if script newer or different xcodebuild or arguments)
-generateMakefile() if ! -f $make || -M $0 < -M $make || !`grep ' $variant' Makefile`;
+generateMakefile() if ! -f $make || -M $0 < -M $make || !makefileMatchesVariant();
 
-exit $EXIT_SUCCESS if $EXIT_SUCCESS == system "make";
+exit $EXIT_SUCCESS if $EXIT_SUCCESS == system "make -f '$make'";
 
 rename $builddb, $builddb.".save";
 
@@ -49,7 +53,7 @@ rename $builddb, $builddb.".save";
 if ($EXIT_SUCCESS == system $xcbuild) {
     captureXcodebuild();
     generateMakefile();
-    exit $EXIT_SUCCESS if $EXIT_SUCCESS == system "make";
+    exit $EXIT_SUCCESS if $EXIT_SUCCESS == system "make -f '$make'";
 }
 
 rename $builddb.".save", $builddb;
@@ -72,6 +76,14 @@ sub captureXcodebuild {
     unlink $make;
     
     rename $builddb.".save", $builddb;
+}
+
+sub makefileMatchesVariant {
+    my $MAKE = IO::File->new("< $make") or return;
+    while (my $line = $MAKE->getline()) {
+        return 1 if index($line, " $variant") >= 0;
+    }
+    return;
 }
 
 sub generateMakefile {
