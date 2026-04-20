@@ -45,6 +45,7 @@ my $log = "$dir/$logTag$logSuffix";
 my $builddb = ($ENV{OBJROOT}||'/tmp')."/XCBuildData/build.db";
 my $xcbuild = "/usr/bin/env -i '$xcodebuild' ARCHS=$archs $args";
 my $EXIT_SUCCESS = 0;
+my $INCREMENTAL = 1;
 my ($LOG, $fileArg);
 
 # regex for file path argument
@@ -55,7 +56,7 @@ $fileArg = "$notSpace+(?:\\\\.$notSpace*)*";
 if (! -f $log || `find . -name project.pbxproj -newer '$log'`) {
     captureXcodebuild();
 } elsif (localSPMPackagesModified($log)) {
-    captureXcodebuildIncremental();
+    captureXcodebuild($INCREMENTAL);
 }
 
 sub localSPMPackagesModified {
@@ -69,18 +70,6 @@ sub localSPMPackagesModified {
 sub localSPMPackageDirs {
     return map { chomp; s{/Package\.swift$}{}; $_ }
         `find . \\( -name .build -o -name .git -o -name .swiftpm -o -name .xcodemake \\) -prune -o -name Package.swift -print`;
-}
-
-sub captureXcodebuildIncremental {
-    rename $builddb, $builddb.".save";
-    my $command = "$xcbuild 2>&1 | tee '$log'";
-    warn "Executing incremental: $command\n";
-    if ($EXIT_SUCCESS != system $command) {
-        unlink $log;
-        exit !$EXIT_SUCCESS;
-    }
-    unlink $make;
-    rename $builddb.".save", $builddb;
 }
 
 # Regenerate Makefile (if script newer or different xcodebuild or arguments)
@@ -101,6 +90,7 @@ rename $builddb.".save", $builddb;
 exit !$EXIT_SUCCESS;
 
 sub captureXcodebuild {
+    my ($incremental) = @_;
     # Move Xcode's build database to one side to
     # be able to use xcodebuild inside a scheme.
     rename $builddb, $builddb.".save";
@@ -108,7 +98,7 @@ sub captureXcodebuild {
     if (my ($bundle) = $variant =~ /-resultBundlePath ($fileArg)/) {
         $xcbuild = "rm -rf '$bundle'; $xcbuild";
     }
-    my $command = "$xcbuild clean; $xcbuild 2>&1 | tee '$log'";
+    my $command = ($incremental ? "" : "$xcbuild clean; ") . "$xcbuild 2>&1 | tee '$log'";
     warn "Executing: $command\n";
     if ($EXIT_SUCCESS != system $command) {
         unlink $log;
