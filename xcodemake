@@ -15,6 +15,7 @@
 #
 
 use IO::File;
+use Digest::MD5 qw(md5_hex);
 use strict;
 
 my $dir = ".xcodemake";
@@ -23,13 +24,24 @@ my $make = "$dir/Makefile";
 
 my $xcodebuild = ($ENV{DEVELOPER_BIN_DIR}||'/usr/bin')."/xcodebuild";
 my $archs = $ENV{ARCHS}||'arm64';
+my $hasConfiguration = grep { $_ eq "-config" || $_ eq "-configuration" } @ARGV;
+my $hasScheme = grep { $_ eq "-scheme" } @ARGV;
+push @ARGV, "-configuration", "Debug" if !$hasConfiguration && !$hasScheme;
 my $args = join ' ', map { "'$_'" } @ARGV;
-my $hasConfiguration = $args =~ /-(?:config|configuration)\b/;
-my $hasScheme = $args =~ /-scheme\b/;
-$args .= " -configuration Debug" if !$hasConfiguration && !$hasScheme;
 
 my $variant = "$xcodebuild ARCHS=$archs $args.";
-my $log = "$dir/xcodemake $args.log";
+my $logTag = join "_", @ARGV;
+$logTag =~ s/[\/:]+/_/g;
+$logTag =~ s/[^[:alnum:]._+=,@ -]+/_/g;
+$logTag =~ s/\s+/_/g;
+$logTag =~ s/_+/_/g;
+$logTag =~ s/^_+|_+$//g;
+$logTag ||= "default";
+my $maxLogNameLength = 150;
+my $logSuffix = "-" . md5_hex($variant) . ".log";
+$logTag = substr($logTag, 0, $maxLogNameLength - length($logSuffix));
+$logTag =~ s/_+$//;
+my $log = "$dir/$logTag$logSuffix";
 my $builddb = ($ENV{OBJROOT}||'/tmp')."/XCBuildData/build.db";
 my $xcbuild = "/usr/bin/env -i '$xcodebuild' ARCHS=$archs $args";
 my $EXIT_SUCCESS = 0;
