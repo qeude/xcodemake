@@ -16,7 +16,6 @@
 
 use IO::File;
 use Digest::MD5 qw(md5_hex);
-use File::Find qw(find);
 use strict;
 
 my $dir = ".xcodemake";
@@ -61,46 +60,15 @@ if (! -f $log || `find . -name project.pbxproj -newer '$log'`) {
 
 sub localSPMPackagesModified {
     my ($log) = @_;
-    my %pkgDirs;
-    my $modified;
-    find({
-        no_chdir => 1,
-        wanted => sub {
-            return if $modified;
-            if (-d $_ && shouldPruneSPMPath($_)) {
-                $File::Find::prune = 1;
-                return;
-            }
-            $pkgDirs{$_} = 1 if -d $_ && -f "$_/Package.swift";
-            return unless -f $_;
-            my $pkgDir = localSPMPackageDirForFile($_, \%pkgDirs) or return;
-            return unless m{(?:^|/)Package\.swift$} || localSPMFileCanAffectBuild($_, $pkgDir);
-            $modified = 1 if -M $_ < -M $log;
-        },
-    }, ".");
-    return $modified;
-}
-
-sub shouldPruneSPMPath {
-    return $_[0] =~ m{(?:^|/)(?:\.build|\.git|\.swiftpm|\.xcodemake)(?:/|$)};
-}
-
-sub localSPMPackageDirForFile {
-    my ($file, $pkgDirs) = @_;
-    $file =~ s{/[^/]+$}{};
-    while (1) {
-        return $file if $pkgDirs->{$file};
-        last if $file eq ".";
-        $file =~ s{/[^/]+$}{} or $file = ".";
+    for my $package (localSPMPackageDirs()) {
+        return 1 if `find '$package' \\( -name .build -o -name .git -o -name .swiftpm -o -name .xcodemake \\) -prune -o -type f -newer '$log' -print -quit`;
     }
     return;
 }
 
-sub localSPMFileCanAffectBuild {
-    my ($file, $pkgDir) = @_;
-    return 1 if $file =~ m{^\Q$pkgDir\E/(?:Sources|Tests|Plugins|Snippets|Examples|include)/};
-    return 1 if $file =~ /\.(?:swift|c|cc|cpp|cxx|m|mm|h|hh|hpp|hxx|modulemap|metal|xib|storyboard|strings|stringsdict|plist|json|png|jpe?g|gif|pdf|svg|mp3|mp4|wav|caf|aiff|mov|ttf|otf|data|dat|mlmodel|xcdatamodeld?)$/i;
-    return 0;
+sub localSPMPackageDirs {
+    return map { chomp; s{/Package\.swift$}{}; $_ }
+        `find . \\( -name .build -o -name .git -o -name .swiftpm -o -name .xcodemake \\) -prune -o -name Package.swift -print`;
 }
 
 sub captureXcodebuildIncremental {
